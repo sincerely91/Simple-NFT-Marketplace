@@ -56,6 +56,14 @@ contract Market {
         emit Listed(_listingId, msg.sender, token, tokenId, price);
     }
 
+    function getListing(uint256 listingId)
+        public
+        view
+        returns (Listing memory)
+    {
+        return _listings[listingId];
+    }
+
     function buyToken(uint256 listingId) external payable {
         Listing storage listing = _listings[listingId];
         require(listing.status == ListingStatus.Active, "Listing Not Active");
