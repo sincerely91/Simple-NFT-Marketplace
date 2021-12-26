@@ -17,6 +17,22 @@ contract Market {
         uint256 tokenId;
         uint256 price;
     }
+    event Listed(
+        uint256 listingId,
+        address seller,
+        address token,
+        uint256 tokenId,
+        uint256 price
+    );
+
+    event Sale(
+        uint256 listingId,
+        address buyer,
+        address token,
+        uint256 tokenId,
+        uint256 price
+    );
+    event Cancel(uint256 listingId, address seller);
 
     uint256 private _listingId;
 
@@ -37,6 +53,7 @@ contract Market {
         );
         _listingId++;
         _listings[_listingId] = listing;
+        emit Listed(_listingId, msg.sender, token, tokenId, price);
     }
 
     function buyToken(uint256 listingId) external payable {
@@ -51,6 +68,14 @@ contract Market {
             listing.tokenId
         );
         payable(listing.seller).transfer(listing.price);
+
+        emit Sale(
+            listingId,
+            msg.sender,
+            listing.token,
+            listing.tokenId,
+            listing.price
+        );
     }
 
     function cancel(uint256 listingId) public {
@@ -66,5 +91,6 @@ contract Market {
             msg.sender,
             listing.tokenId
         );
+        emit Cancel(listingId, listing.seller);
     }
 }
