@@ -1,0 +1,17 @@
+{
+  "name": "hardhat-project",
+  "license": "UNLICENSED",
+  "scripts": {
+    "compile": "npx hardhat compile"
+  },
+  "dependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "chai": "^4.3.4",
+    "chai-bn": "^0.3.0",
+    "dotenv": "^10.0.0",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.5.1",
+    "hardhat": "^2.6.7"
+  }
+}
