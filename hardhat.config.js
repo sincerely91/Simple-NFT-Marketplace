@@ -4,19 +4,9 @@ require("@nomiclabs/hardhat-waffle");
 const INFURA_KEY = process.env.INFURA_KEY
 const PRIVATE_KEY = process.env.PRIVATE_KEY
 
-
-task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
-  const accounts = await hre.ethers.getSigners();
-
-  for (const account of accounts) {
-    console.log(account.address);
-  }
-});
-
-
 module.exports = {
   defaultNetwork: "ropsten",
-  solidity: "0.8.4",
+  solidity: "0.8.9",
   networks: {
     hardhat: {
       chainId: 1337

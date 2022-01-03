@@ -1,104 +1,195 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
-import "./IERC721.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.9;
+
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "hardhat/console.sol";
 
-contract Market {
-    enum ListingStatus {
+contract Market is ReentrancyGuard {
+    using Counters for Counters.Counter;
+    Counters.Counter private _itemIds;
+    Counters.Counter private _itemsSold;
+    address payable owner;
+    uint256 listingPrice = 0.025 ether;
+
+    enum MarketItemStatus {
         Active,
         Sold,
         Cancelled
     }
 
-    struct Listing {
-        ListingStatus status;
-        address seller;
-        address token;
+    constructor() {
+        owner = payable(msg.sender);
+    }
+
+    struct MarketItem {
+        uint256 itemId;
+        address nftContract;
         uint256 tokenId;
+        address payable seller;
+        address payable owner;
         uint256 price;
+        MarketItemStatus status;
     }
-    event Listed(
-        uint256 listingId,
+
+    mapping(uint256 => MarketItem) private idToMarketItem;
+
+    event MarketItemCreated(
+        uint256 indexed itemId,
+        address indexed nftContract,
+        uint256 indexed tokenId,
         address seller,
-        address token,
-        uint256 tokenId,
-        uint256 price
+        address owner,
+        uint256 price,
+        MarketItemStatus status
     );
 
-    event Sale(
-        uint256 listingId,
-        address buyer,
-        address token,
-        uint256 tokenId,
-        uint256 price
+    event MarketItemSold(
+        uint256 indexed itemId,
+        address indexed nftContract,
+        uint256 indexed tokenId,
+        address seller,
+        address owner,
+        uint256 price,
+        MarketItemStatus status
     );
-    event Cancel(uint256 listingId, address seller);
 
-    uint256 private _listingId;
+    function getListingPrice() public view returns (uint256) {
+        return listingPrice;
+    }
 
-    mapping(uint256 => Listing) private _listings;
-
-    function listingToken(
-        address token,
+    function createMarketItem(
+        address nftContract,
         uint256 tokenId,
         uint256 price
-    ) external {
-        IERC721(token).transferFrom(msg.sender, address(this), tokenId);
-        Listing memory listing = Listing(
-            ListingStatus.Active,
-            msg.sender,
-            token,
-            tokenId,
-            price
-        );
-        _listingId++;
-        _listings[_listingId] = listing;
-        emit Listed(_listingId, msg.sender, token, tokenId, price);
-    }
-
-    function getListing(uint256 listingId)
-        public
-        view
-        returns (Listing memory)
-    {
-        return _listings[listingId];
-    }
-
-    function buyToken(uint256 listingId) external payable {
-        Listing storage listing = _listings[listingId];
-        require(listing.status == ListingStatus.Active, "Listing Not Active");
-        require(msg.sender != listing.seller, "Seller can't be buyer");
-        require(msg.value >= listing.price, "Price is too less");
-        listing.status = ListingStatus.Sold;
-        IERC721(listing.token).transferFrom(
-            address(this),
-            msg.sender,
-            listing.tokenId
-        );
-        payable(listing.seller).transfer(listing.price);
-
-        emit Sale(
-            listingId,
-            msg.sender,
-            listing.token,
-            listing.tokenId,
-            listing.price
-        );
-    }
-
-    function cancel(uint256 listingId) public {
-        Listing storage listing = _listings[listingId];
-        require(msg.sender == listing.seller, "Only Seller can Cancel");
+    ) external payable nonReentrant {
+        require(price > 0, "Price must be at least 1 wei");
         require(
-            listing.status == ListingStatus.Active,
-            "Listing is not Active"
+            msg.value == listingPrice,
+            "Price must be equal to listing price"
         );
-        listing.status == ListingStatus.Cancelled;
-        IERC721(listing.token).transferFrom(
-            address(this),
+        IERC721(nftContract).transferFrom(msg.sender, address(this), tokenId);
+
+        _itemIds.increment();
+
+        uint256 itemId = _itemIds.current();
+
+        idToMarketItem[itemId] = MarketItem(
+            itemId,
+            nftContract,
+            tokenId,
+            payable(msg.sender),
+            payable(address(0)),
+            price,
+            MarketItemStatus.Active
+        );
+
+        emit MarketItemCreated(
+            itemId,
+            nftContract,
+            tokenId,
             msg.sender,
-            listing.tokenId
+            address(0),
+            price,
+            MarketItemStatus.Active
         );
-        emit Cancel(listingId, listing.seller);
+    }
+
+    function createMarketSale(address nftContract, uint256 itemId)
+        external
+        payable
+        nonReentrant
+    {
+        MarketItem storage idToMarketItem_ = idToMarketItem[itemId];
+        uint256 tokenId = idToMarketItem_.tokenId;
+        require(
+            idToMarketItem_.status == MarketItemStatus.Active,
+            "Listing Not Active"
+        );
+        require(msg.sender != idToMarketItem_.seller, "Seller can't be buyer");
+        require(
+            msg.value == idToMarketItem_.price,
+            "Please submit the asking price in order to complete the purchase"
+        );
+        idToMarketItem_.seller.transfer(msg.value);
+        IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId);
+        idToMarketItem_.owner = payable(msg.sender);
+        idToMarketItem_.status = MarketItemStatus.Sold;
+        _itemsSold.increment();
+        payable(owner).transfer(listingPrice);
+
+        emit MarketItemSold(
+            itemId,
+            nftContract,
+            tokenId,
+            idToMarketItem_.seller,
+            msg.sender,
+            idToMarketItem_.price,
+            idToMarketItem_.status
+        );
+    }
+
+    function fetchMarketItems() public view returns (MarketItem[] memory) {
+        uint256 itemCount = _itemIds.current();
+        uint256 unsoldItemCount = _itemIds.current() - _itemsSold.current();
+        uint256 currentIndex = 0;
+
+        MarketItem[] memory items = new MarketItem[](unsoldItemCount);
+        for (uint256 i = 0; i < itemCount; i++) {
+            if (idToMarketItem[i + 1].owner == address(0)) {
+                uint256 currentId = i + 1;
+                MarketItem storage currentItem = idToMarketItem[currentId];
+                items[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+        return items;
+    }
+
+    function fetchMyNFTs() public view returns (MarketItem[] memory) {
+        uint256 totalItemCount = _itemIds.current();
+        uint256 itemCount = 0;
+        uint256 currentIndex = 0;
+
+        for (uint256 i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].owner == msg.sender) {
+                itemCount += 1;
+            }
+        }
+
+        MarketItem[] memory items = new MarketItem[](itemCount);
+        for (uint256 i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].owner == msg.sender) {
+                uint256 currentId = i + 1;
+                MarketItem storage currentItem = idToMarketItem[currentId];
+                items[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+        return items;
+    }
+
+    function fetchItemsCreated() public view returns (MarketItem[] memory) {
+        uint256 totalItemCount = _itemIds.current();
+        uint256 itemCount = 0;
+        uint256 currentIndex = 0;
+
+        for (uint256 i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].seller == msg.sender) {
+                itemCount += 1;
+            }
+        }
+
+        MarketItem[] memory items = new MarketItem[](itemCount);
+        for (uint256 i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].seller == msg.sender) {
+                uint256 currentId = i + 1;
+                MarketItem storage currentItem = idToMarketItem[currentId];
+                items[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+        return items;
     }
 }
