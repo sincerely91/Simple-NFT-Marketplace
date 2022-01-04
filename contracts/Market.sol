@@ -10,6 +10,7 @@ contract Market is ReentrancyGuard {
     using Counters for Counters.Counter;
     Counters.Counter private _itemIds;
     Counters.Counter private _itemsSold;
+    Counters.Counter private _itemsCancelled;
     address payable owner;
     uint256 listingPrice = 0.025 ether;
 
@@ -36,6 +37,15 @@ contract Market is ReentrancyGuard {
     mapping(uint256 => MarketItem) private idToMarketItem;
 
     event MarketItemCreated(
+        uint256 indexed itemId,
+        address indexed nftContract,
+        uint256 indexed tokenId,
+        address seller,
+        address owner,
+        uint256 price,
+        MarketItemStatus status
+    );
+    event MarketItemCancelled(
         uint256 indexed itemId,
         address indexed nftContract,
         uint256 indexed tokenId,
@@ -130,14 +140,46 @@ contract Market is ReentrancyGuard {
         );
     }
 
+    function cancelMarketItem(address nftContract, uint256 itemId)
+        external
+        nonReentrant
+    {
+        MarketItem storage idToMarketItem_ = idToMarketItem[itemId];
+        require(msg.sender == idToMarketItem_.seller, "Only Seller can Cancel");
+        require(
+            idToMarketItem_.status == MarketItemStatus.Active,
+            "Item must be active"
+        );
+        idToMarketItem_.status == MarketItemStatus.Cancelled;
+        _itemsCancelled.increment();
+        idToMarketItem_.seller.transfer(listingPrice);
+        IERC721(nftContract).transferFrom(
+            address(this),
+            msg.sender,
+            idToMarketItem_.tokenId
+        );
+
+        emit MarketItemCreated(
+            itemId,
+            nftContract,
+            idToMarketItem_.tokenId,
+            idToMarketItem_.seller,
+            address(0),
+            idToMarketItem_.price,
+            MarketItemStatus.Cancelled
+        );
+    }
+
     function fetchMarketItems() public view returns (MarketItem[] memory) {
         uint256 itemCount = _itemIds.current();
-        uint256 unsoldItemCount = _itemIds.current() - _itemsSold.current();
+        uint256 unsoldItemCount = _itemIds.current() -
+            _itemsSold.current() -
+            _itemsCancelled.current();
         uint256 currentIndex = 0;
 
         MarketItem[] memory items = new MarketItem[](unsoldItemCount);
         for (uint256 i = 0; i < itemCount; i++) {
-            if (idToMarketItem[i + 1].owner == address(0)) {
+            if (idToMarketItem[i + 1].status == MarketItemStatus.Active) {
                 uint256 currentId = i + 1;
                 MarketItem storage currentItem = idToMarketItem[currentId];
                 items[currentIndex] = currentItem;
@@ -176,14 +218,20 @@ contract Market is ReentrancyGuard {
         uint256 currentIndex = 0;
 
         for (uint256 i = 0; i < totalItemCount; i++) {
-            if (idToMarketItem[i + 1].seller == msg.sender) {
+            if (
+                idToMarketItem[i + 1].seller == msg.sender &&
+                idToMarketItem[i + 1].status != MarketItemStatus.Cancelled
+            ) {
                 itemCount += 1;
             }
         }
 
         MarketItem[] memory items = new MarketItem[](itemCount);
         for (uint256 i = 0; i < totalItemCount; i++) {
-            if (idToMarketItem[i + 1].seller == msg.sender) {
+            if (
+                idToMarketItem[i + 1].seller == msg.sender &&
+                idToMarketItem[i + 1].status != MarketItemStatus.Cancelled
+            ) {
                 uint256 currentId = i + 1;
                 MarketItem storage currentItem = idToMarketItem[currentId];
                 items[currentIndex] = currentItem;
