@@ -241,7 +241,7 @@ contract Market is ReentrancyGuard {
                 idToMarketItem[i + 1].status != MarketItemStatus.Cancelled
             ) {
                 uint256 currentId = i + 1;
-                MarketItem storage currentItem = idToMarketItem[currentId];
+                MarketItem memory currentItem = idToMarketItem[currentId];
                 items[currentIndex] = currentItem;
                 currentIndex += 1;
             }
