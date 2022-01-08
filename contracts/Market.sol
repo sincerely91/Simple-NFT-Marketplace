@@ -189,20 +189,24 @@ contract Market is ReentrancyGuard {
         return items;
     }
 
-    function fetchMyNFTs() public view returns (MarketItem[] memory) {
+    function fetchMyNFTs(address sender)
+        public
+        view
+        returns (MarketItem[] memory)
+    {
         uint256 totalItemCount = _itemIds.current();
         uint256 itemCount = 0;
         uint256 currentIndex = 0;
 
         for (uint256 i = 0; i < totalItemCount; i++) {
-            if (idToMarketItem[i + 1].owner == msg.sender) {
+            if (idToMarketItem[i + 1].owner == sender) {
                 itemCount += 1;
             }
         }
 
         MarketItem[] memory items = new MarketItem[](itemCount);
         for (uint256 i = 0; i < totalItemCount; i++) {
-            if (idToMarketItem[i + 1].owner == msg.sender) {
+            if (idToMarketItem[i + 1].owner == sender) {
                 uint256 currentId = i + 1;
                 MarketItem storage currentItem = idToMarketItem[currentId];
                 items[currentIndex] = currentItem;
@@ -212,14 +216,18 @@ contract Market is ReentrancyGuard {
         return items;
     }
 
-    function fetchItemsCreated() public view returns (MarketItem[] memory) {
+    function fetchItemsCreated(address sender)
+        public
+        view
+        returns (MarketItem[] memory)
+    {
         uint256 totalItemCount = _itemIds.current();
         uint256 itemCount = 0;
         uint256 currentIndex = 0;
 
         for (uint256 i = 0; i < totalItemCount; i++) {
             if (
-                idToMarketItem[i + 1].seller == msg.sender &&
+                idToMarketItem[i + 1].seller == sender &&
                 idToMarketItem[i + 1].status != MarketItemStatus.Cancelled
             ) {
                 itemCount += 1;
@@ -229,7 +237,7 @@ contract Market is ReentrancyGuard {
         MarketItem[] memory items = new MarketItem[](itemCount);
         for (uint256 i = 0; i < totalItemCount; i++) {
             if (
-                idToMarketItem[i + 1].seller == msg.sender &&
+                idToMarketItem[i + 1].seller == sender &&
                 idToMarketItem[i + 1].status != MarketItemStatus.Cancelled
             ) {
                 uint256 currentId = i + 1;
