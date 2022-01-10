@@ -226,20 +226,14 @@ contract Market is ReentrancyGuard {
         uint256 currentIndex = 0;
 
         for (uint256 i = 0; i < totalItemCount; i++) {
-            if (
-                idToMarketItem[i + 1].seller == sender &&
-                idToMarketItem[i + 1].status != MarketItemStatus.Cancelled
-            ) {
+            if (idToMarketItem[i + 1].seller == sender) {
                 itemCount += 1;
             }
         }
 
         MarketItem[] memory items = new MarketItem[](itemCount);
         for (uint256 i = 0; i < totalItemCount; i++) {
-            if (
-                idToMarketItem[i + 1].seller == sender &&
-                idToMarketItem[i + 1].status != MarketItemStatus.Cancelled
-            ) {
+            if (idToMarketItem[i + 1].seller == sender) {
                 uint256 currentId = i + 1;
                 MarketItem storage currentItem = idToMarketItem[currentId];
                 items[currentIndex] = currentItem;
