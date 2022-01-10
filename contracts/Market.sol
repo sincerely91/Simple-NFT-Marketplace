@@ -150,7 +150,7 @@ contract Market is ReentrancyGuard {
             idToMarketItem_.status == MarketItemStatus.Active,
             "Item must be active"
         );
-        idToMarketItem_.status == MarketItemStatus.Cancelled;
+        idToMarketItem_.status = MarketItemStatus.Cancelled;
         _itemsCancelled.increment();
         idToMarketItem_.seller.transfer(listingPrice);
         IERC721(nftContract).transferFrom(
