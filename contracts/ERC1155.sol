@@ -8,10 +8,13 @@ import "./ERC2981Royalties.sol";
 contract RarestNFT is ERC1155, ERC2981Royalties {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
+    address marketAddress;
     string public baseURI = "https://gateway.pinata.cloud/ipfs/";
     mapping(uint256 => string) private _hashes;
 
-    constructor() ERC1155("") {}
+    constructor(address marketAddress_) ERC1155("") {
+        marketAddress = marketAddress_;
+    }
 
     function createNFT(
         address recipient,
@@ -25,6 +28,7 @@ contract RarestNFT is ERC1155, ERC2981Royalties {
         uint256 newTokenId = _tokenIds.current();
         _mint(recipient, newTokenId, amount, data);
         _hashes[newTokenId] = hash;
+        setApprovalForAll(marketAddress, true);
         if (royaltyPercent > 0) {
             _setTokenRoyalty(newTokenId, royaltyRecipient, royaltyPercent);
         }
@@ -58,6 +62,7 @@ contract RarestNFT is ERC1155, ERC2981Royalties {
             }
         }
         _mintBatch(recipient, ids, amounts, data);
+        setApprovalForAll(marketAddress, true);
         return ids;
     }
 
