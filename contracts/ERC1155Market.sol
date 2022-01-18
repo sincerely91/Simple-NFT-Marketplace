@@ -59,6 +59,27 @@ contract Market is ReentrancyGuard {
         return listingPrice;
     }
 
+    event ListingCreated(
+        uint256 indexed itemId,
+        address indexed nftContract,
+        uint256 indexed tokenId,
+        uint256 quantity,
+        address seller,
+        uint256 price
+    );
+
+    event ListingCancelled(uint256 indexed itemId, uint256 quantity);
+
+    event ListingBuy(
+        uint256 indexed itemId,
+        address indexed nftContract,
+        uint256 indexed tokenId,
+        uint256 quantity,
+        address seller,
+        address buyer
+    );
+    event RoyaltyPaid(address indexed receiver, uint256 indexed amount);
+
     function createMarketItem(
         address nftContract,
         uint256 tokenId,
@@ -89,9 +110,17 @@ contract Market is ReentrancyGuard {
             price,
             MarketItemStatus.Active
         );
+        emit ListingCreated(
+            itemId,
+            nftContract,
+            tokenId,
+            quantity_,
+            msg.sender,
+            price
+        );
     }
 
-    function createMarketSale(
+    function Buy(
         address nftContract,
         uint256 itemId,
         uint256 quantity_
@@ -125,6 +154,7 @@ contract Market is ReentrancyGuard {
 
         if (royaltyAmount > 0) {
             payable(royaltyReceiver).transfer(royaltyAmount);
+            emit RoyaltyPaid(royaltyReceiver, royaltyAmount);
         }
 
         payable(idToMarketItem_.seller).transfer(msg.value - royaltyAmount);
@@ -143,6 +173,14 @@ contract Market is ReentrancyGuard {
             _itemsSold.increment();
             payable(owner).transfer(listingPrice);
         }
+        emit ListingBuy(
+            itemId,
+            nftContract,
+            tokenId,
+            quantity_,
+            idToMarketItem_.seller,
+            msg.sender
+        );
     }
 
     function getRoyalties(
@@ -180,6 +218,8 @@ contract Market is ReentrancyGuard {
             idToMarketItem_.status = MarketItemStatus.Cancelled;
             payable(idToMarketItem_.seller).transfer(listingPrice);
         }
+
+        emit ListingCancelled(itemId, quantity_);
     }
 
     function fetchMarketItems() public view returns (MarketItem[] memory) {
