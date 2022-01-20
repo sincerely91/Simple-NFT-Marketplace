@@ -1,13 +1,13 @@
-const hre = require("hardhat");
+const { ethers } = require("hardhat");
 const fs = require('fs');
 
 async function main() {
-  const NFTMarket = await hre.ethers.getContractFactory("Market");
+  const NFTMarket = await ethers.getContractFactory("ERC1155Market");
   const nftMarket = await NFTMarket.deploy();
   await nftMarket.deployed();
   console.log("nftMarket deployed to:", nftMarket.address);
 
-  const NFT = await hre.ethers.getContractFactory("NFT");
+  const NFT = await ethers.getContractFactory("RarestNFT");
   const nft = await NFT.deploy(nftMarket.address);
   await nft.deployed();
   console.log("nft deployed to:", nft.address);
@@ -17,9 +17,7 @@ async function main() {
   export const nftaddress = "${nft.address}"
   `
 
-  let data = JSON.stringify(config)
-  fs.writeFileSync('config.js', JSON.parse(data))
-
+  fs.writeFileSync('config.js', config)
 }
 
 main()

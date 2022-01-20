@@ -25,7 +25,7 @@ interface IERC1155 {
         returns (address receiver, uint256 royaltyAmount);
 }
 
-contract Market is ReentrancyGuard {
+contract ERC1155Market is ReentrancyGuard {
     using Counters for Counters.Counter;
     Counters.Counter private _itemIds;
     Counters.Counter private _itemsSold;
