@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
+
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 
 abstract contract ERC2981Royalties is IERC2981 {
