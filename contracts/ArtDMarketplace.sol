@@ -3,16 +3,16 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "hardhat/console.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ArtDodger.sol";
 
-contract Market is ReentrancyGuard {
+contract ArtDMarketplace is Ownable, ReentrancyGuard {
     using Counters for Counters.Counter;
     Counters.Counter private _itemIds;
     Counters.Counter private _itemsSold;
     Counters.Counter private _itemsCancelled;
-    address payable owner;
-    uint256 listingPrice = 0.025 ether;
+    uint256 listingPrice = 5000000000000000;
+    ArtDodger private artD;
 
     enum MarketItemStatus {
         Active,
@@ -21,12 +21,16 @@ contract Market is ReentrancyGuard {
     }
 
     constructor() {
-        owner = payable(msg.sender);
+        artD = ArtDodger(address(0));
+    }
+
+    function setArtD(address ArtDAddress) public onlyOwner returns (bool) {
+        artD = ArtDodger(ArtDAddress);
+        return true;
     }
 
     struct MarketItem {
         uint256 itemId;
-        address nftContract;
         uint256 tokenId;
         address payable seller;
         address payable owner;
@@ -38,16 +42,15 @@ contract Market is ReentrancyGuard {
 
     event MarketItemCreated(
         uint256 indexed itemId,
-        address indexed nftContract,
         uint256 indexed tokenId,
         address seller,
         address owner,
         uint256 price,
         MarketItemStatus status
     );
+
     event MarketItemCancelled(
         uint256 indexed itemId,
-        address indexed nftContract,
         uint256 indexed tokenId,
         address seller,
         address owner,
@@ -57,7 +60,6 @@ contract Market is ReentrancyGuard {
 
     event MarketItemSold(
         uint256 indexed itemId,
-        address indexed nftContract,
         uint256 indexed tokenId,
         address seller,
         address owner,
@@ -65,21 +67,44 @@ contract Market is ReentrancyGuard {
         MarketItemStatus status
     );
 
-    function getListingPrice() public view returns (uint256) {
-        return listingPrice;
+    modifier OnlyItemOwner(uint256 tokenId) {
+        require(
+            artD.ownerOf(tokenId) == msg.sender,
+            "Sender does not own the item"
+        );
+        _;
     }
 
-    function createMarketItem(
-        address nftContract,
-        uint256 tokenId,
-        uint256 price
-    ) external payable nonReentrant {
+    modifier HasTransferApproval(uint256 tokenId) {
+        require(
+            artD.getApproved(tokenId) == address(this),
+            "Market is not approved"
+        );
+        _;
+    }
+
+    modifier ItemExists(uint256 id) {
+        require(id <= _itemIds.current() && id > 0, "Could not find item");
+        _;
+    }
+
+    function changeListingPrice(uint256 price) public onlyOwner returns (bool) {
+        listingPrice = price;
+        return true;
+    }
+
+    function createMarketItem(uint256 tokenId, uint256 price)
+        external
+        payable
+        OnlyItemOwner(tokenId)
+        HasTransferApproval(tokenId)
+    {
         require(price > 0, "Price must be at least 1 wei");
         require(
             msg.value == listingPrice,
             "Price must be equal to listing price"
         );
-        IERC721(nftContract).transferFrom(msg.sender, address(this), tokenId);
+        artD.transferFrom(msg.sender, address(this), tokenId);
 
         _itemIds.increment();
 
@@ -87,7 +112,6 @@ contract Market is ReentrancyGuard {
 
         idToMarketItem[itemId] = MarketItem(
             itemId,
-            nftContract,
             tokenId,
             payable(msg.sender),
             payable(address(0)),
@@ -97,7 +121,6 @@ contract Market is ReentrancyGuard {
 
         emit MarketItemCreated(
             itemId,
-            nftContract,
             tokenId,
             msg.sender,
             address(0),
@@ -106,9 +129,10 @@ contract Market is ReentrancyGuard {
         );
     }
 
-    function createMarketSale(address nftContract, uint256 itemId)
+    function createMarketSale(uint256 itemId)
         external
         payable
+        ItemExists(itemId)
         nonReentrant
     {
         MarketItem storage idToMarketItem_ = idToMarketItem[itemId];
@@ -122,16 +146,15 @@ contract Market is ReentrancyGuard {
             msg.value == idToMarketItem_.price,
             "Please submit the asking price in order to complete the purchase"
         );
-        idToMarketItem_.seller.transfer(msg.value);
-        IERC721(nftContract).transferFrom(address(this), msg.sender, tokenId);
+        payable(idToMarketItem_.seller).transfer(msg.value);
+        artD.transferFrom(address(this), msg.sender, tokenId);
+        payable(owner()).transfer(listingPrice);
         idToMarketItem_.owner = payable(msg.sender);
         idToMarketItem_.status = MarketItemStatus.Sold;
         _itemsSold.increment();
-        payable(owner).transfer(listingPrice);
 
         emit MarketItemSold(
             itemId,
-            nftContract,
             tokenId,
             idToMarketItem_.seller,
             msg.sender,
@@ -140,8 +163,9 @@ contract Market is ReentrancyGuard {
         );
     }
 
-    function cancelMarketItem(address nftContract, uint256 itemId)
+    function cancelMarketItem(uint256 itemId)
         external
+        ItemExists(itemId)
         nonReentrant
     {
         MarketItem storage idToMarketItem_ = idToMarketItem[itemId];
@@ -153,15 +177,10 @@ contract Market is ReentrancyGuard {
         idToMarketItem_.status = MarketItemStatus.Cancelled;
         _itemsCancelled.increment();
         idToMarketItem_.seller.transfer(listingPrice);
-        IERC721(nftContract).transferFrom(
-            address(this),
-            msg.sender,
-            idToMarketItem_.tokenId
-        );
+        artD.transferFrom(address(this), msg.sender, idToMarketItem_.tokenId);
 
         emit MarketItemCreated(
             itemId,
-            nftContract,
             idToMarketItem_.tokenId,
             idToMarketItem_.seller,
             address(0),
@@ -241,5 +260,9 @@ contract Market is ReentrancyGuard {
             }
         }
         return items;
+    }
+
+    function getListingPrice() public view returns (uint256) {
+        return listingPrice;
     }
 }

@@ -2,21 +2,18 @@ const { ethers } = require("hardhat");
 const fs = require('fs');
 
 async function main() {
-  const NFTMarket = await ethers.getContractFactory("ERC1155Market");
-  const nftMarket = await NFTMarket.deploy();
-  await nftMarket.deployed();
-  console.log("nftMarket deployed to:", nftMarket.address);
+  const ArtDMarketplace = await ethers.getContractFactory("ArtDMarketplace");
+  const artDMarketplace = await ArtDMarketplace.deploy();
+  await artDMarketplace.deployed();
 
-  const NFT = await ethers.getContractFactory("RarestNFT");
-  const nft = await NFT.deploy(nftMarket.address);
-  await nft.deployed();
-  console.log("nft deployed to:", nft.address);
+  const ArtDodger = await ethers.getContractFactory("ArtDodger");
+  const artDodger = await ArtDodger.deploy(artDMarketplace.address);
+  await artDodger.deployed();
 
   let config = `
-  export const nftmarketaddress = "${nftMarket.address}"
-  export const nftaddress = "${nft.address}"
+  export const ArtDMarketplace = "${artDMarketplace.address}"
+  export const ArtDodger = "${artDodger.address}"
   `
-
   fs.writeFileSync('config.js', config)
 }
 

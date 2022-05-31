@@ -4,23 +4,33 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-contract NFT is ERC721URIStorage {
+contract ArtDodger is Ownable, ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
-    address contractAddress;
+    address public marketplace;
 
-    constructor(address marketplaceAddress) ERC721("Art Dodger", "AD") {
-        contractAddress = marketplaceAddress;
+    constructor(address marketplaceAddress) ERC721("Art Dodger", "ARTD") {
+        marketplace = marketplaceAddress;
     }
 
-    function createToken(string memory tokenURI) public returns (uint256) {
+    function mintNft(string memory tokenURI) public returns (uint256) {
         _tokenIds.increment();
         uint256 newItemId = _tokenIds.current();
         _mint(msg.sender, newItemId);
         _setTokenURI(newItemId, tokenURI);
-        setApprovalForAll(contractAddress, true);
+        setApprovalForAll(marketplace, true);
         return newItemId;
+    }
+
+    function setMarketplace(address marketplaceAddress)
+        public
+        onlyOwner
+        returns (bool)
+    {
+        marketplace = marketplaceAddress;
+        return true;
     }
 }

@@ -2,7 +2,7 @@ require('dotenv').config();
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
 
-const INFURA_KEY = process.env.INFURA_KEY
+const ALCHEMY_KEY = process.env.ALCHEMY_KEY
 const PRIVATE_KEY = process.env.PRIVATE_KEY
 const API_KEY = process.env.API_KEY
 module.exports = {
@@ -12,12 +12,8 @@ module.exports = {
     hardhat: {
       chainId: 1337
     },
-    kovan: {
-      url: `https://kovan.infura.io/v3/${INFURA_KEY}`,
-      accounts: [`0x${PRIVATE_KEY}`]
-    },
     ropsten: {
-      url: `https://ropsten.infura.io/v3/${INFURA_KEY}`,
+      url: `https://eth-ropsten.alchemyapi.io/v2/${ALCHEMY_KEY}`,
       accounts: [`0x${PRIVATE_KEY}`]
     },
   },
