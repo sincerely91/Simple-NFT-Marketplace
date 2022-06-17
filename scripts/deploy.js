@@ -2,13 +2,13 @@ const { ethers } = require("hardhat");
 const fs = require('fs');
 
 async function main() {
-  const ArtDMarketplace = await ethers.getContractFactory("ArtDMarketplace");
-  const artDMarketplace = await ArtDMarketplace.deploy();
-  await artDMarketplace.deployed();
-
   const ArtDodger = await ethers.getContractFactory("ArtDodger");
-  const artDodger = await ArtDodger.deploy(artDMarketplace.address);
+  const artDodger = await ArtDodger.deploy();
   await artDodger.deployed();
+
+  const ArtDMarketplace = await ethers.getContractFactory("ArtDMarketplace");
+  const artDMarketplace = await ArtDMarketplace.deploy(artDodger.address);
+  await artDMarketplace.deployed();
 
   let config = `
   export const ArtDMarketplace = "${artDMarketplace.address}"

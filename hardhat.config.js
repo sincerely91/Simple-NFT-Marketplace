@@ -6,7 +6,7 @@ const ALCHEMY_KEY = process.env.ALCHEMY_KEY
 const PRIVATE_KEY = process.env.PRIVATE_KEY
 const API_KEY = process.env.API_KEY
 module.exports = {
-  defaultNetwork: "hardhat",
+  defaultNetwork: "ropsten",
   solidity: "0.8.9",
   networks: {
     hardhat: {

@@ -20,8 +20,8 @@ contract ArtDMarketplace is Ownable, ReentrancyGuard {
         Cancelled
     }
 
-    constructor() {
-        artD = ArtDodger(address(0));
+    constructor(address ArtDAddress ) {
+        artD = ArtDodger(ArtDAddress);
     }
 
     function setArtD(address ArtDAddress) public onlyOwner returns (bool) {

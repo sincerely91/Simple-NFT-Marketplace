@@ -10,10 +10,8 @@ import "hardhat/console.sol";
 contract ArtDodger is Ownable, ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
-    address public marketplace;
 
-    constructor(address marketplaceAddress) ERC721("Art Dodger", "ARTD") {
-        marketplace = marketplaceAddress;
+    constructor() ERC721("Art Dodger", "ARTD") {
     }
 
     function mintNft(string memory tokenURI) public returns (uint256) {
@@ -21,16 +19,6 @@ contract ArtDodger is Ownable, ERC721URIStorage {
         uint256 newItemId = _tokenIds.current();
         _mint(msg.sender, newItemId);
         _setTokenURI(newItemId, tokenURI);
-        setApprovalForAll(marketplace, true);
         return newItemId;
-    }
-
-    function setMarketplace(address marketplaceAddress)
-        public
-        onlyOwner
-        returns (bool)
-    {
-        marketplace = marketplaceAddress;
-        return true;
     }
 }
