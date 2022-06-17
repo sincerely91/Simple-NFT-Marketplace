@@ -20,7 +20,7 @@ contract ArtDMarketplace is Ownable, ReentrancyGuard {
         Cancelled
     }
 
-    constructor(address ArtDAddress ) {
+    constructor(address ArtDAddress) {
         artD = ArtDodger(ArtDAddress);
     }
 
@@ -66,6 +66,8 @@ contract ArtDMarketplace is Ownable, ReentrancyGuard {
         uint256 price,
         MarketItemStatus status
     );
+
+    event RoyaltyPaid(address indexed receiver, uint256 indexed amount);
 
     modifier OnlyItemOwner(uint256 tokenId) {
         require(
@@ -146,13 +148,23 @@ contract ArtDMarketplace is Ownable, ReentrancyGuard {
             msg.value == idToMarketItem_.price,
             "Please submit the asking price in order to complete the purchase"
         );
-        payable(idToMarketItem_.seller).transfer(msg.value);
+
+        (address royaltyReceiver, uint256 royaltyAmount) = getRoyalties(
+            tokenId,
+            msg.value
+        );
+        require(royaltyAmount <= msg.value, "royalty amount too big");
+        if (royaltyAmount > 0) {
+            payable(royaltyReceiver).transfer(royaltyAmount);
+            emit RoyaltyPaid(royaltyReceiver, royaltyAmount);
+        }
+
+        payable(idToMarketItem_.seller).transfer(msg.value - royaltyAmount);
         artD.transferFrom(address(this), msg.sender, tokenId);
         payable(owner()).transfer(listingPrice);
         idToMarketItem_.owner = payable(msg.sender);
         idToMarketItem_.status = MarketItemStatus.Sold;
         _itemsSold.increment();
-
         emit MarketItemSold(
             itemId,
             tokenId,
@@ -161,6 +173,18 @@ contract ArtDMarketplace is Ownable, ReentrancyGuard {
             idToMarketItem_.price,
             idToMarketItem_.status
         );
+    }
+
+    function getRoyalties(uint256 tokenId, uint256 price)
+        private
+        view
+        returns (address receiver, uint256 royaltyAmount)
+    {
+        (receiver, royaltyAmount) = artD.royaltyInfo(tokenId, price);
+        if (receiver == address(0) || royaltyAmount == 0) {
+            return (address(0), 0);
+        }
+        return (receiver, royaltyAmount);
     }
 
     function cancelMarketItem(uint256 itemId)
