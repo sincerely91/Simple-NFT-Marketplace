@@ -79,7 +79,7 @@ contract ArtDMarketplace is Ownable, ReentrancyGuard {
 
     modifier HasTransferApproval(uint256 tokenId) {
         require(
-            artD.getApproved(tokenId) == address(this),
+            artD.isApprovedForAll(_msgSender(), address(this)),
             "Market is not approved"
         );
         _;
